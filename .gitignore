@@ -1,4 +1,7 @@
+#Temp MATLAB file
+*.m~
 #raw data
 *.zip
 *.csv
 *.xls
+*.mat
