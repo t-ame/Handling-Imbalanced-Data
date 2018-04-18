@@ -12,15 +12,17 @@ input_data = xlsread('TrialData.xlsx');
 numlayers = 3;
 tansferFcnSelect = 3;                % Set 1 - for log sigmoid, 2 - for tan sigmoid, 3 - for linear transfer function
 trainingFcnSelect = 3;               % Set 1 - for gradient descent, 2 - for Scaled Conjugate Gradient, 3 - for variable rate backprop, 
+trainingDataSize = 0.5;              % Provide a percent value (0 - 1), to split the training and testing datasets
 
 %% Input pre-conditioning
 
 % Separate input and output labels
 data_size = size(input_data);
-x = input_data(:, 1:data_size(2) - 1);
-y = input_data(:, data_size(2));
+trainingdata_size = round(trainingDataSize*data_size(1));
+x = input_data(1:trainingdata_size, 1:data_size(2) - 1);
+y = input_data(1:trainingdata_size, data_size(2));
 
-% Normalize the input data
+% Normalize the input training data
 x_norm  = normalize_data(x);
 
 m = size(x, 1); % Input data size
@@ -84,7 +86,15 @@ view(net);
 
 %% Predict neural net values
 % Predict the output values
-retval = return_output(net(x_norm'), tansferFcnSelect);
+testdata_size = data_size(1) - trainingdata_size;
+
+% Generate the test data using the split percentage
+x_test = input_data(trainingdata_size+1:end, 1:data_size(2) - 1);
+y_test_expected = input_data(trainingdata_size+1:end, data_size(2));
+
+% Normalize the test dataset
+x_test_norm = normalize_data(x_test);
+y_predicted = (return_output(net(x_test_norm'), tansferFcnSelect))';
 
 %% This function performs normalization of the input data
 function data_out = normalize_data(data)
