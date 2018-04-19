@@ -3,26 +3,42 @@
 % Project - Fraud detection on imbalanced data sets
 % Neural network implementation
 
-clc
-clear
-close all
+clc;
+clear all;
+close all;
 
 % Read Data (Provide input file name here)
-%input_data = load('Data.mat');
-%input_data = input_data.Data; 
 input_data = xlsread('TrialData.xlsx');
+%input_data = xlsread('creditcard.xlsx');
 numlayers = 3;
 tansferFcnSelect = 3;                % Set 1 - for log sigmoid, 2 - for tan sigmoid, 3 - for linear transfer function
 trainingFcnSelect = 3;               % Set 1 - for gradient descent, 2 - for Scaled Conjugate Gradient, 3 - for variable rate backprop, 
-trainingDataSize = 0.8;              % Provide a percent value (0 - 1), to split the training and testing datasets
+trainingDataSize = 0.5;              % Provide a percent value (0 - 1), to split the training and testing datasets
 
-%% Input pre-conditioning
+%% Call SMOTE function
 
 % Separate input and output labels
 data_size = size(input_data);
-trainingdata_size = round(trainingDataSize*data_size(1));
-x = input_data(1:trainingdata_size, 1:data_size(2) - 1);
-y = input_data(1:trainingdata_size, data_size(2));
+ratio = 3;
+[in_data_x, in_data_y] = SMOTE(input_data(:, 1:data_size(2) - 1), input_data(:, data_size(2)), ratio);
+
+% Perform data shuffling
+val = [in_data_x, in_data_y];
+val = val(randperm(size(val, 1)),:);
+in_data_x = val(:, 1:data_size(2) - 1);
+in_data_y = val(:, data_size(2));
+
+% Data after smote
+data_size_after_smote = size(in_data_x);
+
+%% Input pre-conditioning
+
+trainingdata_size = round(trainingDataSize*data_size_after_smote(1));
+%x = input_data(1:trainingdata_size, 1:data_size(2) - 1);
+%y = input_data(1:trainingdata_size, data_size(2));
+
+x = in_data_x(1:trainingdata_size, :);
+y = in_data_y(1:trainingdata_size, :);
 
 % Normalize the input training data
 x_norm  = normalize_data(x);
@@ -88,19 +104,26 @@ view(net);
 
 %% Predict neural net values
 % Predict the output values
-testdata_size = data_size(1) - trainingdata_size;
+testdata_size = data_size_after_smote(1) - trainingdata_size;
 
 % Generate the test data using the split percentage
-x_test = input_data(trainingdata_size+1:end, 1:data_size(2) - 1);
-y_test_expected = input_data(trainingdata_size+1:end, data_size(2));
+% x_test = input_data(trainingdata_size+1:end, 1:data_size(2) - 1);
+% y_test_expected = input_data(trainingdata_size+1:end, data_size(2));
+
+x_test = in_data_x(trainingdata_size+1:end, :);
+y_test_expected = in_data_y(trainingdata_size+1:end, :);
 
 % Normalize the test dataset
 x_test_norm = normalize_data(x_test);
 y_predicted = (return_output(net(x_test_norm'), tansferFcnSelect))';
 
-% Save predictions to mat file
-mat_name = sprintf('nn_predicted_%s_%s.mat',net.layers{:}.transferFcn,net.trainFcn);
-save(mat_name, 'y_predicted');
+% Plot confusion matrix
+figure;
+plotconfusion(y_test_expected', y_predicted');
+
+% Plot the Receiver Operating Characteristics (ROC)
+figure;
+plotroc(y_test_expected', y_predicted');
 
 %% This function performs normalization of the input data
 function data_out = normalize_data(data)
