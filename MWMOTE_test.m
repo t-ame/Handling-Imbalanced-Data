@@ -1,17 +1,6 @@
 
-%WILL NEED TO CONVERT TABLE TO AN ARRAY:
-%A = table2array(T)
-%DOES IT!!!
+%reference = http://www.cs.bham.ac.uk/~xin/papers/tkde2012_IslamYao.pdf
 
-%MIGHT NEED TO SPLIT ARRAY:
-%lenth = length(xtrain(1,:))
-%class1 = xtrain(xtrain(:,end) == 1,1:end-1)
-%class0 = xtrain(xtrain(:,end) == 0,1:end-1)
-%DOES IT!!!
-
-% s = X(c == 4, :)
-%c = cluster no.
-%X = data
 
 
 
@@ -36,13 +25,12 @@ Y = MWMOTE(Xma, Xmi, 4, 5,4,3)
 
 
 function Xomin = MWMOTE(Xmaj, Xmin, N, k1, k2, k3)
-    %[Ximin,Sbmaj] = Imin(Xmaj,Xmin,k1,k2,k3);
     minlen = length(Xmin);
     Xomin = zeros(minlen+N, length(Xmin(1,:)));
     Xomin(1:minlen, :) = Xmin;
-    [Sbmaj, Simin, Th] = Imin(Xmaj,Xmin,k1,k2,k3);
-    Xomin(minlen+1:end, :) = genSynthetic(Simin,Sbmaj, N, Th, 4); %tune Cp-4
-    %Xomin = genSynthetic(Xmin,Xmaj, N);
+    [Sbmaj, Simin, Avedist] = Imin(Xmaj,Xmin,k1,k2,k3);
+    Threshold = Avedist*4;   %tune Cp = 4
+    Xomin(minlen+1:end, :) = genSynthetic(Simin,Sbmaj, N, Threshold);
 end
 
 %function to obtain the informed set of minority data points
@@ -96,7 +84,6 @@ function [Sbmaj, Simin, AveDist] = Imin(Xmaj,Xmin,k1,k2,k3)
     [~, D] = knnsearch(KDT,Sminf, 'K', 2, 'IncludeTies',true);
     Ave = 0;
     for i = 1:length(D)
-        %D{2}(2)
         Ave = Ave + D{i}(2);
     end
     AveDist = Ave/nminf;
@@ -113,7 +100,7 @@ end
 
 
 %function to generate the synthetic data points
-function Xsyn = genSynthetic(Ximin,Sbmaj, N, Avedist, Cp)
+function Xsyn = genSynthetic(Ximin,Sbmaj, N, Th)
     len = length(Ximin);
     lmaj= length(Sbmaj);
     Sw = zeros(len,1);
@@ -124,7 +111,8 @@ function Xsyn = genSynthetic(Ximin,Sbmaj, N, Avedist, Cp)
     %steps 7-9 - Generate weights for each informative minority data point
     for i = 1:len
         for j = 1:lmaj
-            acc = acc + InfoWeight(Ximin(i,:),Sbmaj(j,:),Ximin);
+            %acc = acc + InfoWeight(Ximin(i,:),Sbmaj(j,:),Ximin);
+            acc = acc + (cost(Ximin(i,:),Sbmaj(j,:)) * density(Ximin(i,:),Sbmaj(j,:),Ximin));
         end
         Sw(i) = acc;
         acc = 0;
@@ -138,31 +126,33 @@ function Xsyn = genSynthetic(Ximin,Sbmaj, N, Avedist, Cp)
     
     %steps 10-13 - Generate synthetic data points
     %clustering...
-    Th = Avedist * Cp;
     Z = linkage(Ximin,'average','chebychev');
     c = cluster(Z,'cutoff',Th);
-    c = categorical(c);
-    p = categories(c);
-    %cat = length(p);
-    for i = 1:length(p)
+    
+    ind =0;
+    randsel = datasample([Ximin c], N, 1, 'Weights', Sp);
+    n = length(randsel);
+    while n ~= 0
         %work on each cluster
-        %attach the weight to the data
-        %clust = [Ximin(c == 'p{i}',:) Sw(c == 'p{i}')];
-        j = 0;
-        %g = x + (y ? x) × ?
+        cat = randsel(1,end);  
+        Nclust = randsel(randsel(:,end) == cat, 1:end-1); 
+        clust = Ximin(c == cat,:);
+        KDT = KDTreeSearcher(clust);
+        NN = knnsearch(KDT,Nclust, 'K',randi([2 4],1,1));
+        %g = x + (y - x) × alpha
+        %new = Nclust + (clust(NN(:,end),:) - Nclust) * rand;
+        Xsyn(ind+1:ind+length(Nclust), :) = Nclust + (clust(NN(:,end),:) - Nclust) * rand; 
+        randsel = randsel(randsel(:,end) ~= cat, :);
+        n = length(randsel);
     end
-    
-    
-    
-    %Xsyn = Sp;
 end
 
 
 %function for calculating the information weight 
 %of each minority data point
-function Iw = InfoWeight(x,y,Ximin)
-    Iw = cost(x,y) * density(x,y,Ximin);
-end
+%function Iw = InfoWeight(x,y,Ximin)
+ %   Iw = cost(x,y) * density(x,y,Ximin);
+%end
 
 %function to calculate the cost function of a minority data point
 function Cf = cost(x,y,Cth,CMAX)
