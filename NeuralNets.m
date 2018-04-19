@@ -3,16 +3,18 @@
 % Project - Fraud detection on imbalanced data sets
 % Neural network implementation
 
-clc;
-clear all;
-close all;
+clc
+clear
+close all
 
 % Read Data (Provide input file name here)
+%input_data = load('Data.mat');
+%input_data = input_data.Data; 
 input_data = xlsread('TrialData.xlsx');
 numlayers = 3;
 tansferFcnSelect = 3;                % Set 1 - for log sigmoid, 2 - for tan sigmoid, 3 - for linear transfer function
 trainingFcnSelect = 3;               % Set 1 - for gradient descent, 2 - for Scaled Conjugate Gradient, 3 - for variable rate backprop, 
-trainingDataSize = 0.5;              % Provide a percent value (0 - 1), to split the training and testing datasets
+trainingDataSize = 0.8;              % Provide a percent value (0 - 1), to split the training and testing datasets
 
 %% Input pre-conditioning
 
@@ -95,6 +97,10 @@ y_test_expected = input_data(trainingdata_size+1:end, data_size(2));
 % Normalize the test dataset
 x_test_norm = normalize_data(x_test);
 y_predicted = (return_output(net(x_test_norm'), tansferFcnSelect))';
+
+% Save predictions to mat file
+mat_name = sprintf('nn_predicted_%s_%s.mat',net.layers{:}.transferFcn,net.trainFcn);
+save(mat_name, 'y_predicted');
 
 %% This function performs normalization of the input data
 function data_out = normalize_data(data)
