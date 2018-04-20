@@ -10,7 +10,8 @@
 
 import MWMOTE.*
 %% Initialize variables.
-filename = '/Users/okeyamechi/Downloads/creditcard.csv';
+%filename = '/Users/okeyamechi/Downloads/creditcard.csv';
+filename = 'creditcard.csv';
 delimiter = ',';
 startRow = 2;
 
