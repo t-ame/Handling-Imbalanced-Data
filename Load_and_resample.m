@@ -1,7 +1,7 @@
 %% Import data from text file.
 % Script for importing data from the following text file:
 %
-%    /Users/okeyamechi/Downloads/creditcard.csv
+%    creditcard.csv
 %
 % To extend the code to different selected data or a different text file,
 % generate a function instead of a script.
@@ -10,7 +10,6 @@
 
 import MWMOTE.*
 %% Initialize variables.
-%filename = '/Users/okeyamechi/Downloads/creditcard.csv';
 filename = 'creditcard.csv';
 delimiter = ',';
 startRow = 2;
