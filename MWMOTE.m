@@ -1,18 +1,19 @@
 %reference = http://www.cs.bham.ac.uk/~xin/papers/tkde2012_IslamYao.pdf
 
 
-function Xomin = MWMOTE(Xmaj, Xmin, N, k1, k2, k3)
+function Xomin = MWMOTE(Xmaj, Xmin, N, k1, k2, k3, clustCost)
     minlen = length(Xmin);
     Xomin = zeros(minlen+N, length(Xmin(1,:)));
     Xomin(1:minlen, :) = Xmin;
-    [Sbmaj, Simin, Avedist] = Imin(Xmaj,Xmin,k1,k2,k3);
-    Threshold = Avedist*4;   %tune Cp = 4
-    Xomin(minlen+1:end, :) = genSynthetic(Simin,Sbmaj, N, Threshold);
+    [Sbmaj, Simin, Avedist, Maxdist] = Imin(Xmaj,Xmin,k1,k2,k3);
+    Threshold = Avedist*clustCost;   %tune Cp = 4
+    SDmin = std2(Xmin);
+    Xomin(minlen+1:end, :) = genSynthetic(Simin,Sbmaj, N, Threshold,SDmin,Maxdist);
 end
 
 
 %function to obtain the informed set of minority data points
-function [Sbmaj, Simin, AveDist] = Imin(Xmaj,Xmin,k1,k2,k3)
+function [Sbmaj, Simin, AveDist, maxDist] = Imin(Xmaj,Xmin,k1,k2,k3)
     data = [Xmaj; Xmin];
     dim = length(Xmin(1,:));
     nmin = length(Xmin);
@@ -48,7 +49,14 @@ function [Sbmaj, Simin, AveDist] = Imin(Xmaj,Xmin,k1,k2,k3)
     'Step 3-4'
     nminf = length(Sminf);
     KDT = KDTreeSearcher(Xmaj);
-    NN = knnsearch(KDT,Sminf, 'K',k2);
+    [NN, De] = knnsearch(KDT,Sminf, 'K',k2);
+    
+    Ave = 0;
+    for i = 1:length(De)
+        Ave = Ave + De{i}(end);
+    end
+    maxDist = Ave/nminf;
+    
     index = 1;
     Sbmaj = zeros(nminf*k2, dim);
     for i = 1:nminf
@@ -87,7 +95,7 @@ end
 
 
 %function to generate the synthetic data points
-function Xsyn = genSynthetic(Ximin,Sbmaj, N, Th)
+function Xsyn = genSynthetic(Ximin,Sbmaj, N, Th, Cth, CMAX)
     len = length(Ximin);
     lmaj= length(Sbmaj);
     Sw = zeros(len,1);
@@ -98,7 +106,7 @@ function Xsyn = genSynthetic(Ximin,Sbmaj, N, Th)
     for i = 1:len
         for j = 1:lmaj
             %Cf = cost(x,y,Cth,CMAX)
-            acc = acc + (cost(Ximin(i,:),Sbmaj(j,:)) * density(Ximin(i,:),Sbmaj(j,:),Ximin));
+            acc = acc + (cost(Ximin(i,:),Sbmaj(j,:),Cth, CMAX) * density(Ximin(i,:),Sbmaj(j,:),Ximin));
         end
         Sw(i) = acc;
         acc = 0;
