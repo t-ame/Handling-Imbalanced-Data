@@ -10,7 +10,7 @@
 
 import MWMOTE.*
 %% Initialize variables.
-filename = 'creditcard.csv';
+filename = '/Users/okeyamechi/Downloads/creditcard.csv';
 delimiter = ',';
 startRow = 2;
 
@@ -95,14 +95,14 @@ k3 = 10;
 ResampledClass1 = MWMOTE(class0, class1, N, k1, k2, k3, 5);
 
 %% Create output variable
-if exist('class1.mat', 'file') ~= 2 
+%if exist('class1.mat', 'file') ~= 2 
     save('class1.mat', 'ResampledClass1')
-end
+%end
 
 %% Create output variable
-if exist('class0.mat', 'file') ~= 2 
+%if exist('class0.mat', 'file') ~= 2 
     save('class0.mat', 'class0')
-end
+%end
 
 %% Clear temporary variables
 clearvars filename delimiter startRow formatSpec fileID dataArray ans raw col numericData rawData row regexstr result numbers invalidThousandsSeparator thousandsRegExp R;
