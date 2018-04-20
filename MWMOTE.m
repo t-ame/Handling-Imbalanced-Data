@@ -53,7 +53,8 @@ function [Sbmaj, Simin, AveDist, maxDist] = Imin(Xmaj,Xmin,k1,k2,k3)
     
     Ave = 0;
     for i = 1:length(De)
-        Ave = Ave + De{i}(end);
+        Ave = Ave + De(i,k2);
+        %Ave = Ave + De{i}(k2);
     end
     maxDist = Ave/nminf;
     
@@ -98,25 +99,25 @@ end
 function Xsyn = genSynthetic(Ximin,Sbmaj, N, Th, Cth, CMAX)
     len = length(Ximin);
     lmaj= length(Sbmaj);
-    Sw = zeros(len,1);
-    acc = 0;
+    Sp = zeros(len,1);
+    %acc = 0;
     
     %steps 7-9 - Generate weights for each informative minority data point
     'Step 7-9'
     for i = 1:len
         for j = 1:lmaj
-            %Cf = cost(x,y,Cth,CMAX)
-            acc = acc + (cost(Ximin(i,:),Sbmaj(j,:),Cth, CMAX) * density(Ximin(i,:),Sbmaj(j,:),Ximin));
+            Sp(i) = Sp(i) + (cost(Ximin(i,:),Sbmaj(j,:),Cth, CMAX) * density(Ximin(i,:),Sbmaj(j,:),Ximin));
         end
-        Sw(i) = acc;
-        acc = 0;
+        %Sp(i) = acc;
+        %acc = 0;
     end
-    s = sum(Sw);
+    s = sum(Sp);
+    Sp = Sp/s;
     
-    Sp = zeros(len,1);
-    for i = 1:len
-        Sp(i) = Sw(i)/s;
-    end
+    %Sp = zeros(len,1);
+    %for i = 1:len
+     %   Sp(i) = Sp(i)/s;
+    %end
     
     %steps 10-13 - Generate synthetic data points
     'Step 10-13'
