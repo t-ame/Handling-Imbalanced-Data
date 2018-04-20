@@ -1,7 +1,4 @@
-
 %reference = http://www.cs.bham.ac.uk/~xin/papers/tkde2012_IslamYao.pdf
-
-
 
 
 load fisheriris
@@ -10,25 +7,23 @@ n = size(meas,1);
 idx = randsample(n,5);
 X = meas(~ismember(1:n,idx),:); % Training data
 s = length(X);
-Xma = zeros(int32(s/2),length(X(1,:)));
-Xmi = zeros(int32(s/2),length(X(1,:)));
-ind = s;
-for h = 1:(s/2)
-    Xma(h,:) = X(h,:);
-    Xmi(h,:) = X(ind,:);
-    ind = ind - 1;
-end
 
-Y = MWMOTE(Xma, Xmi, 4, 5,4,3)
+trainingdata_size = round((s/3)*2);
 
+Xma = X(1:trainingdata_size, :);
+Xmi = X(trainingdata_size+1:end, :);
 
+N = 20;
 
+Y = MWMOTE(Xma, Xmi, N, 5,4,3);
 
 function Xomin = MWMOTE(Xmaj, Xmin, N, k1, k2, k3)
     minlen = length(Xmin);
     Xomin = zeros(minlen+N, length(Xmin(1,:)));
     Xomin(1:minlen, :) = Xmin;
     [Sbmaj, Simin, Avedist] = Imin(Xmaj,Xmin,k1,k2,k3);
+    %length(Sbmaj)
+    %length(Simin)
     Threshold = Avedist*4;   %tune Cp = 4
     Xomin(minlen+1:end, :) = genSynthetic(Simin,Sbmaj, N, Threshold);
 end
@@ -40,10 +35,12 @@ function [Sbmaj, Simin, AveDist] = Imin(Xmaj,Xmin,k1,k2,k3)
     nmin = length(Xmin);
     
     %step 1 - Get all k1 NN for Xmin in the whole data set
+    'Step 1'
     KDT = KDTreeSearcher(data);
     NN = knnsearch(KDT,Xmin, 'K',k1);
     
     %step 2 - populate the Sminf matrix with data only in Xmin
+    'Step 2'
     for i = 1:nmin
         for j = 1:k1
             s = 0;
@@ -62,20 +59,26 @@ function [Sbmaj, Simin, AveDist] = Imin(Xmaj,Xmin,k1,k2,k3)
         end
     end
     
+    Sminf = removeDuplicate(Sminf);
+    
     %step 3-4 - generate Sbmaj from Sminf
+    'Step 3-4'
     nminf = length(Sminf);
     KDT = KDTreeSearcher(Xmaj);
     NN = knnsearch(KDT,Sminf, 'K',k2);
     index = 1;
     Sbmaj = zeros(nminf*k2, dim);
-    for i = 1:nmin
+    for i = 1:nminf
         for j = 1:k2
             Sbmaj(index,:) = Xmaj(NN(i,j),:);
             index = index + 1;
         end
     end
     
+    Sbmaj = removeDuplicate(Sbmaj);
+    
     %step 5-6 - generate Simin using the Xbmaj and Sminf
+    'Step 5-6'
     nmaj = length(Sbmaj);
     KDT = KDTreeSearcher(Sminf);
     NN = knnsearch(KDT,Sbmaj, 'K',k3);
@@ -90,12 +93,13 @@ function [Sbmaj, Simin, AveDist] = Imin(Xmaj,Xmin,k1,k2,k3)
     
     index = 1;
     Simin = zeros(nmaj*k3, dim);
-    for i = 1:nmin
+    for i = 1:nmaj
         for j = 1:k3
             Simin(index,:) = Sminf(NN(i,j),:);
             index = index + 1;
         end
     end
+    Simin = removeDuplicate(Simin);
 end
 
 
@@ -106,13 +110,14 @@ function Xsyn = genSynthetic(Ximin,Sbmaj, N, Th)
     Sw = zeros(len,1);
     acc = 0;
     
-    Xsyn = zeros(N,length(Ximin(1,:)));
-    
     %steps 7-9 - Generate weights for each informative minority data point
+    'Step 7-9'
     for i = 1:len
         for j = 1:lmaj
             %acc = acc + InfoWeight(Ximin(i,:),Sbmaj(j,:),Ximin);
+            %Cf = cost(x,y,Cth,CMAX)
             acc = acc + (cost(Ximin(i,:),Sbmaj(j,:)) * density(Ximin(i,:),Sbmaj(j,:),Ximin));
+            %c = c + 1
         end
         Sw(i) = acc;
         acc = 0;
@@ -125,37 +130,29 @@ function Xsyn = genSynthetic(Ximin,Sbmaj, N, Th)
     end
     
     %steps 10-13 - Generate synthetic data points
+    'Step 10-13'
     %clustering...
-    Z = linkage(Ximin,'average','chebychev');
+    Z = linkage(Ximin,'average');
     c = cluster(Z,'cutoff',Th);
     
-    ind =0;
-    randsel = datasample([Ximin c], N, 1, 'Weights', Sp);
-    n = length(randsel);
-    while n ~= 0
-        %work on each cluster
-        cat = randsel(1,end);  
-        Nclust = randsel(randsel(:,end) == cat, 1:end-1); 
-        clust = Ximin(c == cat,:);
+    Xsyn = zeros(N,length(Ximin(1,:)));
+    data = [Ximin c];
+    
+    Ngen = datasample(data, N, 1, 'Weights', Sp);
+    
+    for i = 1:N
+        clust = data(data(:,end) == Ngen(i,end),1:end-1);
         KDT = KDTreeSearcher(clust);
-        NN = knnsearch(KDT,Nclust, 'K',randi([2 4],1,1));
-        %g = x + (y - x) × alpha
-        %new = Nclust + (clust(NN(:,end),:) - Nclust) * rand;
-        Xsyn(ind+1:ind+length(Nclust), :) = Nclust + (clust(NN(:,end),:) - Nclust) * rand; 
-        randsel = randsel(randsel(:,end) ~= cat, :);
-        n = length(randsel);
+        NN = knnsearch(KDT,Ngen(i,1:end-1), 'K',randi([2 4],1,1));
+        Xsyn(i,:) = Ngen(i,1:end-1) + (clust(NN(end),:) - Ngen(i,1:end-1)) * rand;
     end
 end
 
 
-%function for calculating the information weight 
-%of each minority data point
-%function Iw = InfoWeight(x,y,Ximin)
- %   Iw = cost(x,y) * density(x,y,Ximin);
-%end
 
 %function to calculate the cost function of a minority data point
 function Cf = cost(x,y,Cth,CMAX)
+     %'    Cost function'
     if ~exist('CMAX','var')
          CMAX = 10;   %choose a suitable value for this
     end
@@ -174,6 +171,7 @@ end
 
 %function to calculate the density function of a minority data point
 function Df = density(x,y,Ximin)
+    %'     Density function'
     n = length(Ximin);
     cf = cost(x,y);
     sum = cost(Ximin(1,:),y);
@@ -183,6 +181,31 @@ function Df = density(x,y,Ximin)
     Df = cf/sum;
 end
 
+
+%function to remove duplicates in generated matrix... for length management
+function output = removeDuplicate(X)
+    lenx = length(X);
+    dim = length(X(1,:));
+    logs = zeros(lenx,1);
+    
+    for i = 1:lenx
+        if logs(i) ~= 1
+            for j = 1:lenx
+                if (j ~= i) && (logs(j) ~= 1)
+                    s=0;
+                    for d = 1:dim
+                        s = s + abs(X(i,d) - X(j,d));
+                    end
+                    if s == 0
+                        logs(j) = 1;
+                    end
+                end
+            end
+        end
+    end
+
+    output = X(logs == 0,:);
+end
 
 %normalized euclidean distance function
 function dn = dist(x,y)
